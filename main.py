@@ -13,6 +13,7 @@ class JeuMorpion(BaseModel):
 
 @app.post("/coup_morpion")
 def jouer_coup(jeu: JeuMorpion):
+    jeu.model_name = "llama3:latest"
     MAX_TENTATIVES = 5
     coups_essayes = [] 
 
