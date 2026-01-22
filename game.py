@@ -1,14 +1,14 @@
 import streamlit as st
 import time
 import random
-from game_logic import play, reset, check_winner
+from game_logic import play, reset, check_winner , call_ai_api, validate_ai_board
 import pydantic 
 import requests
 
 st.set_page_config(page_title="Morpion", page_icon="⭕")
 st.title("Morpion (Tic-Tac-Toe)⭕✖️")
 
-#API_URL = "http://localhost:8000/move"  
+API_URL = "http://localhost:8000/move"  
     
 
 
@@ -67,25 +67,48 @@ with colB:
 
 ### faire jouer IA api
 
-def ai_move_random(grille):
-    """IA temporaire: joue au hasard sur une case vide. (à remplacer par ton API)"""
-    empty = [i for i, cell in enumerate(grille) if cell == ""]
-    return random.choice(empty) if empty else None
 
 # vitesse entre chaque coup
 speed = 0.5
-# --- boucle "auto" : 1 coup par rerun ---
-if st.session_state.running and not st.session_state.winner and not st.session_state.draw:
-    idx = ai_move_random(st.session_state.grille)   # <- plus tard: appel API ici
-    if idx is not None:
-        play(idx)
+
+###faire jouer les ia###
+if (
+    st.session_state.running
+    and not st.session_state.winner
+    and not st.session_state.draw
+):
+    old_grille = st.session_state.grille.copy()
+
+    # appel API : elle renvoie la grille mise à jour
+    new_grille = call_ai_api(
+        old_grille,
+        st.session_state.player
+    )
+
+    # sécurité : vérifier que l'IA a joué correctement
+    validate_ai_board(
+        old_grille,
+        new_grille,
+        st.session_state.player
+    )
+
+    # mise à jour de la grille
+    st.session_state.grille = new_grille
+
+    # vérifier fin de partie
+    w = check_winner(st.session_state.grille)
+    if w:
+        st.session_state.winner = w
+    elif all(cell != "" for cell in st.session_state.grille):
+        st.session_state.draw = True
+    else:
+        # changer de joueur seulement si la partie continue
+        st.session_state.player = (
+            "⭕" if st.session_state.player == "✖️" else "✖️"
+        )
 
     # petite pause pour voir l'animation
     time.sleep(speed)
 
     # relance pour jouer le prochain coup
     st.rerun()
-
-# si la partie est finie, on stoppe l'auto
-if st.session_state.winner or st.session_state.draw:
-    st.session_state.running = False
